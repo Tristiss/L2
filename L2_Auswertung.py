@@ -8,44 +8,43 @@ from scipy.signal import find_peaks
 from scipy.differentiate import derivative
 from scipy import constants
 
-
-# Source - https://stackoverflow.com/a
-# Posted by alko
-# Retrieved 2025-12-25, License - CC BY-SA 3.0
-
-def partial_derivative(func, var=0, point=[]):
-    args = point[:]
-    def wraps(x):
-        args[var] = x
-        return func(*args)
-    return derivative(wraps, point[var], dx = 1e-6)
-
-
 mpl.rcParams['text.usetex'] = True
 mpl.rcParams.update(mpl.rcParamsDefault)
 
 uncertainty_frequency = 2 * constants.pi * 0.225 / (2 * np.sqrt(3))
 uncertainty_amplitude = 0.01 #10 mV
 
-def u_A(params, u_params):
-    result = 0
-    for i in u_params:
-        res = partial_derivative(fit_func, var = i, point = params)
-        result += np.square(res.df[0] * u_params[i])
-    return np.sqrt(result)
 
 def fit_func(params:list):
     omega, a, omega_0, delta, B, C = params[0], params[1], params[2], params[3], params[4], params[5]
-    return a / np.sqrt(np.square(np.square(omega_0) - np.square(omega + C)) + np.square(2 * delta * (omega + C))) + B # = A(\omega)
+    res = a / np.sqrt(np.square(np.square(omega_0) - np.square(omega + C)) + np.square(2 * delta * (omega + C))) + B # = A(\omega)
+    return np.array(res)
 
 def fit_func_odr(params:list, omega):
-    params.insert(0, omega)
-    return fit_func(params)
+    a, omega_0, delta, B, C = params[0], params[1], params[2], params[3], params[4]
+    return a / np.sqrt(np.square(np.square(omega_0) - np.square(omega + C)) + np.square(2 * delta * (omega + C))) + B # = A(\omega)
+    #np.insert(params, 0, omega)
+    #return fit_func(params)
+
+def partial_derivative(var:int, point:list):
+    def dif(x:float, params:list):
+        params = np.insert(params, 0, x)
+        print(params)
+        return fit_func(params)
+    varia = point[var]
+    return derivative(dif, varia, args = [point.tolist()])
+
+def u_A(params, u_params):
+    result = 0
+    for i in range(len(u_params)):
+        res = partial_derivative(var = i, point = params)
+        result += np.square(res.df[0] * u_params[i])
+    return np.sqrt(result)
 
 def evaluation(frequency:list, amplitude:list, label, fig, axs):
-    fit_func_odr = odr.Model(fit_func_odr)
+    odr_model = odr.Model(fit_func_odr)
     data = odr.RealData(frequency, amplitude, sx = uncertainty_frequency, sy = uncertainty_amplitude)
-    odr_fit = odr.ODR(data,fit_func_odr, beta0 = [400, 3.3, 0.2, 0, 0])
+    odr_fit = odr.ODR(data,odr_model, beta0 = [400, 3.3, 0.2, 0, 0])
     output = odr_fit.run()
 
     output.pprint()
@@ -61,8 +60,10 @@ def evaluation(frequency:list, amplitude:list, label, fig, axs):
     resonance_frequency = x[peaks[0]]
     print(resonance_frequency)
 
+    u_A_params = np.insert(output.beta, 0, resonance_frequency)
+
     amplitude_res_freq = fit_func_odr([a, omega_0, delta, B, C], resonance_frequency)
-    u_amplitude_res_freq = u_A(output.beta, [u_omega_0, u_a, u_delta, u_B, u_C])
+    u_amplitude_res_freq = u_A(u_A_params, [u_omega_0, u_a, u_delta, u_B, u_C])
 
     axs.errorbar(resonance_frequency, amplitude_res_freq, xerr = u_omega_0, yerr = u_amplitude_res_freq, label = r"Resonanzfrequenz $\omega_0$",c = "blue", fmt = "o", capsize = 3)
 
