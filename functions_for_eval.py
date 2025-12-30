@@ -85,7 +85,7 @@ class evaluation():
         odr_fit = odr.ODR(data,odr_model, beta0 = [400, 3.3, 0.2, 0, 0])
         output = odr_fit.run()
 
-        output.pprint()
+        #output.pprint()
 
         a, omega_0, delta, B, C = output.beta[0], output.beta[1], output.beta[2], output.beta[3], output.beta[4]
         u_a, u_omega_0, u_delta, u_B, u_C = output.sd_beta[0], output.sd_beta[1], output.sd_beta[2], output.sd_beta[3], output.sd_beta[4]
@@ -96,7 +96,6 @@ class evaluation():
 
         peaks, props = find_peaks(y)
         resonance_frequency = x[peaks[0]]
-        print(resonance_frequency)
 
         u_A_params = np.concatenate(([resonance_frequency],output.beta)) #np.insert(output.beta, 0, resonance_frequency)
 
@@ -105,12 +104,15 @@ class evaluation():
 
         axs.errorbar(resonance_frequency, amplitude_res_freq, xerr = u_omega_0, yerr = u_amplitude_res_freq, label = r"Resonanzfrequenz $\omega_0$",c = "blue", fmt = "o", capsize = 3)
 
-        print(rf"The resonance frequency is: {resonance_frequency} {u'\u00b1'} {u_omega_0}")
+        rel_u_f_res_freq = u_omega_0 / np.abs(resonance_frequency)
+        print(rf"The resonance frequency is: {resonance_frequency} {u'\u00b1'} {u_omega_0} with rel u. {rel_u_f_res_freq}")
 
         amplitude_cut_off_freq = 0.707 * amplitude_res_freq
         u_amplitude_cut_off_freq = 0.707 * u_amplitude_res_freq
-        print(rf"Amplitude at res freq: {amplitude_res_freq} {u'\u00b1'} {u_amplitude_res_freq}")
-        print(rf"Amplitude at cut off freq: {amplitude_cut_off_freq} {u'\u00b1'} {u_amplitude_cut_off_freq}")
+        rel_u_amp_res_freq = u_amplitude_res_freq / np.abs(amplitude_res_freq)
+        rel_u_amp_cut_freq = u_amplitude_cut_off_freq / np.abs(amplitude_cut_off_freq)
+        print(rf"Amplitude at res freq: {amplitude_res_freq} {u'\u00b1'} {u_amplitude_res_freq} with rel u. {rel_u_amp_res_freq}")
+        print(rf"Amplitude at cut off freq: {amplitude_cut_off_freq} {u'\u00b1'} {u_amplitude_cut_off_freq} with rel u. {rel_u_amp_cut_freq}")
         
         args = (a, omega_0, delta, B, C)
         func = lambda omega, a, omega_0, delta, B, C: Fit_Functions.fit_func_odr([a, omega_0, delta, B, C], omega) - amplitude_cut_off_freq
@@ -124,11 +126,13 @@ class evaluation():
 
         bandwidth = cut_off_freq_1 - cut_off_freq_0
         u_bandwidth = np.sqrt(2 * np.square(u_omega_0))
-        print(rf"The bandwidth is equal to {bandwidth} {u'\u00b1'} {u_bandwidth}")
+        rel_u_bandwidth = u_bandwidth / np.abs(bandwidth)
+        print(rf"The bandwidth is equal to {bandwidth} {u'\u00b1'} {u_bandwidth} with rel u. {rel_u_bandwidth}")
 
         quality_factor = resonance_frequency / bandwidth
         u_quality_factor = np.sqrt(np.square(u_omega_0 / bandwidth) + np.square(- resonance_frequency * u_bandwidth / np.square(bandwidth)))
-        print(rf"The quality factor is equal to {quality_factor} {u'\u00b1'} {u_quality_factor}")
+        rel_u_qf = u_quality_factor / np.abs(quality_factor)
+        print(rf"The quality factor is equal to {quality_factor} {u'\u00b1'} {u_quality_factor} with rel u. {rel_u_qf}")
 
         decay_rate = resonance_frequency / (2 * quality_factor)
         print(f"The decay rate is equal to: {decay_rate}")

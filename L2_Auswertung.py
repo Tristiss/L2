@@ -12,6 +12,14 @@ mpl.rcParams.update(mpl.rcParamsDefault)
 uncertainty_frequency = 2 * constants.pi * 0.225 / (2 * np.sqrt(3))
 uncertainty_amplitude = 0.01 #10 mV
 
+lower_bound = 10
+upper_bound = -10
+
+mask_type = 3
+# 0 => no masking
+# 1 => mask only left side
+# 2 => mask only right side
+# 3 => mask both sides
 
 """
 def partial_derivative(var:int, point:list):
@@ -36,13 +44,27 @@ def main():
 
     frequency = df["frequency"]
     amplitude = df["amplitude max"]
-    evaluation.eval_L2(frequency[10:-10], amplitude[10:-10], curr, fig, axs, uncertainty_frequency, uncertainty_amplitude)
-    axs.errorbar(frequency[10:-10], amplitude[10:-10], xerr = uncertainty_frequency, yerr = uncertainty_amplitude, label = f"gefittete Messdaten", capsize = 3, c = "orange")
-    masked_data_freq = list(frequency.copy())
-    masked_data_amp = list(amplitude.copy())
-    del masked_data_freq[10:-10]
-    del masked_data_amp[10:-10]
-    axs.errorbar(masked_data_freq, masked_data_amp, xerr = uncertainty_frequency, yerr = uncertainty_amplitude, label = f"maskierte Messdaten", capsize = 3, c = "m", fmt = "o")
+    match mask_type:
+        case 0:
+            evaluation.eval_L2(frequency[lower_bound:upper_bound], amplitude[lower_bound:upper_bound], curr, fig, axs, uncertainty_frequency, uncertainty_amplitude)
+            axs.errorbar(frequency[lower_bound:upper_bound], amplitude[lower_bound:upper_bound], xerr = uncertainty_frequency, yerr = uncertainty_amplitude, label = f"gefittete Messdaten", capsize = 3, c = "orange")
+        case 1:
+            evaluation.eval_L2(frequency[lower_bound:], amplitude[lower_bound:], curr, fig, axs, uncertainty_frequency, uncertainty_amplitude)
+            axs.errorbar(frequency[lower_bound:], amplitude[lower_bound:], xerr = uncertainty_frequency, yerr = uncertainty_amplitude, label = f"gefittete Messdaten", capsize = 3, c = "orange")
+            axs.errorbar(frequency[:-lower_bound], amplitude[:-lower_bound], xerr = uncertainty_frequency, yerr = uncertainty_amplitude, label = f"maskierte Messdaten", capsize = 3, c = "m", fmt = "o")
+            
+        case 2:
+            evaluation.eval_L2(frequency[:upper_bound], amplitude[:upper_bound], curr, fig, axs, uncertainty_frequency, uncertainty_amplitude)
+            axs.errorbar(frequency[:upper_bound], amplitude[:upper_bound], xerr = uncertainty_frequency, yerr = uncertainty_amplitude, label = f"gefittete Messdaten", capsize = 3, c = "orange")
+            axs.errorbar(frequency[upper_bound:], amplitude[upper_bound:], xerr = uncertainty_frequency, yerr = uncertainty_amplitude, label = f"maskierte Messdaten", capsize = 3, c = "m", fmt = "o")
+        case 3:
+            masked_data_freq = list(frequency.copy())
+            masked_data_amp = list(amplitude.copy())
+            evaluation.eval_L2(frequency[lower_bound:upper_bound], amplitude[lower_bound:upper_bound], curr, fig, axs, uncertainty_frequency, uncertainty_amplitude)
+            axs.errorbar(frequency[lower_bound:upper_bound], amplitude[lower_bound:upper_bound], xerr = uncertainty_frequency, yerr = uncertainty_amplitude, label = f"gefittete Messdaten", capsize = 3, c = "orange")
+            del masked_data_freq[lower_bound:upper_bound]
+            del masked_data_amp[lower_bound:upper_bound]
+            axs.errorbar(masked_data_freq, masked_data_amp, xerr = uncertainty_frequency, yerr = uncertainty_amplitude, label = f"maskierte Messdaten", capsize = 3, c = "m", fmt = "o")
     
     axs.legend()
     axs.grid()
