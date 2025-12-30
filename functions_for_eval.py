@@ -1,0 +1,134 @@
+import numpy as np
+from scipy.optimize import least_squares
+from scipy.signal import find_peaks
+import scipy.odr as odr
+from scipy.differentiate import derivative
+
+class Fit_Functions():
+
+
+    @staticmethod
+    def fit_func_om(omega, params:list):
+        a, omega_0, delta, B, C = params[1], params[2], params[3], params[4], params[5]
+        res = a / np.sqrt(np.square(np.square(omega_0) - np.square(omega + C)) + np.square(2 * delta * (omega + C))) + B # = A(\omega)
+        return np.array(res)
+
+    @staticmethod
+    def fit_func_a(a, params:list):
+        omega, omega_0, delta, B, C = params[0], params[2], params[3], params[4], params[5]
+        res = a / np.sqrt(np.square(np.square(omega_0) - np.square(omega + C)) + np.square(2 * delta * (omega + C))) + B # = A(\omega)
+        return np.array(res)
+
+    @staticmethod
+    def fit_func_om0(omega_0, params:list):
+        omega, a, delta, B, C = params[0], params[1], params[3], params[4], params[5]
+        res = a / np.sqrt(np.square(np.square(omega_0) - np.square(omega + C)) + np.square(2 * delta * (omega + C))) + B # = A(\omega)
+        return np.array(res)
+
+    @staticmethod
+    def fit_func_del(delta, params:list):
+        omega, a, omega_0, B, C = params[0], params[1], params[2], params[4], params[5]
+        res = a / np.sqrt(np.square(np.square(omega_0) - np.square(omega + C)) + np.square(2 * delta * (omega + C))) + B # = A(\omega)
+        return np.array(res)
+
+    @staticmethod
+    def fit_func_B(B, params:list):
+        omega, a, omega_0, delta, C = params[0], params[1], params[2], params[3], params[5]
+        res = a / np.sqrt(np.square(np.square(omega_0) - np.square(omega + C)) + np.square(2 * delta * (omega + C))) + B # = A(\omega)
+        return np.array(res)
+
+    @staticmethod
+    def fit_func_C(C, params:list):
+        omega, a, omega_0, delta, B = params[0], params[1], params[2], params[3], params[4]
+        res = a / np.sqrt(np.square(np.square(omega_0) - np.square(omega + C)) + np.square(2 * delta * (omega + C))) + B # = A(\omega)
+        return np.array(res)
+
+    @staticmethod
+    def fit_func_odr(params:list, omega):
+        a, omega_0, delta, B, C = params[0], params[1], params[2], params[3], params[4]
+        return a / np.sqrt(np.square(np.square(omega_0) - np.square(omega + C)) + np.square(2 * delta * (omega + C))) + B # = A(\omega)
+        #np.insert(params, 0, omega)
+        #return fit_func(params)
+
+
+class evaluation():
+
+    @staticmethod
+    def u_A(params, u_params):
+        #res = partial_derivative(var = i, point = params)
+        result = 0
+        print(params[0])
+        res = derivative(Fit_Functions.fit_func_om, params[0], args = [params])
+        result += np.square(res.df[0] * u_params[0])
+
+        res = derivative(Fit_Functions.fit_func_a, params[1], args = [params])
+        result += np.square(res.df[0] * u_params[1])
+        
+        res = derivative(Fit_Functions.fit_func_om0, params[2], args = [params])
+        result += np.square(res.df[0] * u_params[2])
+        
+        res = derivative(Fit_Functions.fit_func_del, params[3], args = [params])
+        result += np.square(res.df[0] * u_params[3])
+
+        res = derivative(Fit_Functions.fit_func_B, params[4], args = [params])
+        result += np.square(res.df[0] * u_params[4])
+        
+        res = derivative(Fit_Functions.fit_func_C, params[5], args = [params])
+        result += np.square(res.df[0] * u_params[5])
+        
+        return np.sqrt(result)
+
+    @staticmethod
+    def eval_L2(frequency:list, amplitude:list, label, fig, axs, uncertainty_frequency, uncertainty_amplitude):
+        odr_model = odr.Model(Fit_Functions.fit_func_odr)
+        data = odr.RealData(frequency, amplitude, sx = uncertainty_frequency, sy = uncertainty_amplitude)
+        odr_fit = odr.ODR(data,odr_model, beta0 = [400, 3.3, 0.2, 0, 0])
+        output = odr_fit.run()
+
+        output.pprint()
+
+        a, omega_0, delta, B, C = output.beta[0], output.beta[1], output.beta[2], output.beta[3], output.beta[4]
+        u_a, u_omega_0, u_delta, u_B, u_C = output.sd_beta[0], output.sd_beta[1], output.sd_beta[2], output.sd_beta[3], output.sd_beta[4]
+
+        x = np.linspace(min(frequency), max(frequency), 10000)
+        y = [Fit_Functions.fit_func_odr([a, omega_0, delta, B, C], i) for i in x]
+        axs.plot(x,y, label = f"ODR Fit", c = "cyan")
+
+        peaks, props = find_peaks(y)
+        resonance_frequency = x[peaks[0]]
+        print(resonance_frequency)
+
+        u_A_params = np.concatenate(([resonance_frequency],output.beta)) #np.insert(output.beta, 0, resonance_frequency)
+
+        amplitude_res_freq = Fit_Functions.fit_func_odr([a, omega_0, delta, B, C], resonance_frequency)
+        u_amplitude_res_freq = evaluation.u_A(u_A_params, [u_omega_0, u_a, u_omega_0, u_delta, u_B, u_C])
+
+        axs.errorbar(resonance_frequency, amplitude_res_freq, xerr = u_omega_0, yerr = u_amplitude_res_freq, label = r"Resonanzfrequenz $\omega_0$",c = "blue", fmt = "o", capsize = 3)
+
+        print(rf"The resonance frequency is: {resonance_frequency} {u'\u00b1'} {u_omega_0}")
+
+        amplitude_cut_off_freq = 0.707 * amplitude_res_freq
+        u_amplitude_cut_off_freq = 0.707 * u_amplitude_res_freq
+        print(rf"Amplitude at res freq: {amplitude_res_freq} {u'\u00b1'} {u_amplitude_res_freq}")
+        print(rf"Amplitude at cut off freq: {amplitude_cut_off_freq} {u'\u00b1'} {u_amplitude_cut_off_freq}")
+        
+        args = (a, omega_0, delta, B, C)
+        func = lambda omega, a, omega_0, delta, B, C: Fit_Functions.fit_func_odr([a, omega_0, delta, B, C], omega) - amplitude_cut_off_freq
+        cut_off_freq_0 = least_squares(func, x0 = 2.5, bounds = (0, resonance_frequency), args = args)["x"][0]
+        cut_off_freq_1 = least_squares(func, x0 = resonance_frequency+2, bounds = (resonance_frequency, np.inf), args = args)["x"][0]
+
+        print(f"The cut off frequencies are: {cut_off_freq_0} and {cut_off_freq_1}")
+
+        axs.errorbar(cut_off_freq_0, amplitude_cut_off_freq, xerr = u_omega_0, yerr = u_amplitude_cut_off_freq, label = r"Linke Grenzfrequenz $f_{g,1}$", c = "green", fmt = "o", capsize = 3)
+        axs.errorbar(cut_off_freq_1, amplitude_cut_off_freq, xerr = u_omega_0, yerr = u_amplitude_cut_off_freq, label = r"Rechte Grenzfrequenz $f_{g,2}$", c = "purple", fmt = "o", capsize = 3)
+
+        bandwidth = cut_off_freq_1 - cut_off_freq_0
+        u_bandwidth = np.sqrt(2 * np.square(u_omega_0))
+        print(rf"The bandwidth is equal to {bandwidth} {u'\u00b1'} {u_bandwidth}")
+
+        quality_factor = resonance_frequency / bandwidth
+        u_quality_factor = np.sqrt(np.square(u_omega_0 / bandwidth) + np.square(- resonance_frequency * u_bandwidth / np.square(bandwidth)))
+        print(rf"The quality factor is equal to {quality_factor} {u'\u00b1'} {u_quality_factor}")
+
+        decay_rate = resonance_frequency / (2 * quality_factor)
+        print(f"The decay rate is equal to: {decay_rate}")
