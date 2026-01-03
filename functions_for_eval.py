@@ -3,6 +3,7 @@ from scipy.optimize import least_squares
 from scipy.signal import find_peaks
 import scipy.odr as odr
 from scipy.differentiate import derivative
+import matplotlib.pyplot as plt
 
 class Fit_Functions_L2():
     # the reason for so many functions is because I don't know how to rearange the arguments of functions
@@ -129,18 +130,10 @@ class evaluation():
         result += np.square(res.df[0] * u_params[4])
         
         return np.sqrt(result)
-    """
-    @staticmethod
-    def monte_carlo(func, constants, params, cov_matrix):
-        num_run = 1000
-        for _ in range(num_run):
-            para = []
-            for i in params:
-    """
             
 
     @staticmethod
-    def eval_L2(frequency:list, amplitude:list, axs, uncertainty_frequency, uncertainty_amplitude, beta0, horizontal_shift, test_phase = False):
+    def eval_L2(frequency:list, amplitude:list, axs, uncertainty_frequency, uncertainty_amplitude, beta0, horizontal_shift, axs_hist, test_phase = False):
         match horizontal_shift:
             case True:
                 func = Fit_Functions_L2.fit_func_odr_with_shift
@@ -164,8 +157,10 @@ class evaluation():
         resonance_frequency = x[peaks[0]]
 
         # monte carlo for find peaks
-        runs = 100
+        runs = 1000
         result = []
+        result_0 = []
+        result_1 = []
         for _ in range(runs):
             arg = np.random.multivariate_normal(output.beta, output.cov_beta)
             x = np.linspace(min(frequency), max(frequency), 10000)
@@ -173,10 +168,25 @@ class evaluation():
             peaks, props = find_peaks(y)
             x2 = x[peaks[0]]
             result.append(x2)
-        
-        u_res_freq = np.std(result)
 
-        del result
+            amplitude_res_freq = func(arg, x2)
+            amplitude_cut_off_freq = 0.707 * amplitude_res_freq
+            function_ls = lambda omega: func(arg, omega) - amplitude_cut_off_freq
+            x0 = least_squares(function_ls, x0 = 1, bounds = (0, resonance_frequency))["x"][0]
+            x1 = least_squares(function_ls, x0 = resonance_frequency + 2, bounds = (resonance_frequency, np.inf))["x"][0]
+            result_0.append(x0)
+            result_1.append(x1)
+
+        
+        axs_hist[0].hist(result, label = "Resonanzfrequenz")
+        axs_hist[1].hist(result_0, label = "linke Grenzfrequenz")
+        axs_hist[2].hist(result_1, label = "rechte Grenzfrequenz")
+
+        u_res_freq = np.std(result)
+        u_cut_freq_0 = np.std(result_0)
+        u_cut_freq_1 = np.std(result_1)
+
+        del result, result_0, result_1
 
         u_A_params = np.concatenate(([resonance_frequency],output.beta))
         u_A_unc_params = np.concatenate(([u_omega_0], output.sd_beta))
@@ -201,21 +211,11 @@ class evaluation():
         cut_off_freq_0 = least_squares(function_ls, x0 = 1, bounds = (0, resonance_frequency))["x"][0]
         cut_off_freq_1 = least_squares(function_ls, x0 = resonance_frequency + 2, bounds = (resonance_frequency, np.inf))["x"][0]
 
-        # monte carlo for least squares
-        result_0 = []
-        result_1 = []
-        for _ in range(runs):
-            arg = np.random.multivariate_normal(output.beta, output.cov_beta)
-            function_ls = lambda omega: func(arg, omega) - amplitude_cut_off_freq
-            x0 = least_squares(function_ls, x0 = 1, bounds = (0, resonance_frequency))["x"][0]
-            x1 = least_squares(function_ls, x0 = resonance_frequency + 2, bounds = (resonance_frequency, np.inf))["x"][0]
-            result_0.append(x0)
-            result_1.append(x1)
+        rel_u_cut_off_freq_0 = u_cut_freq_0 / np.positive(cut_off_freq_0)
+        rel_u_cut_off_freq_1 = u_cut_freq_1 / np.positive(cut_off_freq_1)
 
-        u_cut_freq_0 = np.std(result_0)
-        u_cut_freq_1 = np.std(result_1)
-
-        print(f"The cut off frequencies are: {cut_off_freq_0} and {cut_off_freq_1}")
+        print(f"The left cut off frequencies are: {cut_off_freq_0} {u'\u00b1'} {u_cut_freq_0} with rel u. {rel_u_cut_off_freq_0}")
+        print(f"The right cut off frequencies are: {cut_off_freq_1} {u'\u00b1'} {u_cut_freq_1} with rel u. {rel_u_cut_off_freq_1}")
 
         if test_phase == False:
             axs.errorbar(cut_off_freq_0, amplitude_cut_off_freq, xerr = u_cut_freq_0, yerr = u_amplitude_cut_off_freq, label = r"Linke Grenzfrequenz $f_{g,1}$", c = "green", fmt = "o", capsize = 3)

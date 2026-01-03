@@ -80,26 +80,27 @@ def main():
     df = pd.read_csv(path + file_name, sep = ";")
 
     fig, axs = plt.subplots(tight_layout = True)
+    fig_hist, axs_hist = plt.subplots(3, 1, tight_layout = True)
 
     frequency = df["frequency"]
     amplitude = df["amplitude max"]
     
     match mask_type:
         case 0:
-            evaluation.eval_L2(frequency, amplitude, axs, uncertainty_frequency, uncertainty_amplitude, active_fit_guess, horizontal_shift, test_phase)
+            evaluation.eval_L2(frequency, amplitude, axs, uncertainty_frequency, uncertainty_amplitude, active_fit_guess, horizontal_shift, axs_hist, test_phase)
             axs.errorbar(frequency, amplitude, xerr = uncertainty_frequency, yerr = uncertainty_amplitude, label = f"gefittete Messdaten", capsize = 3, c = "orange")
         case 1:
-            evaluation.eval_L2(frequency[lower_bound:], amplitude[lower_bound:], axs, uncertainty_frequency, uncertainty_amplitude, active_fit_guess, horizontal_shift, test_phase)
+            evaluation.eval_L2(frequency[lower_bound:], amplitude[lower_bound:], axs, uncertainty_frequency, uncertainty_amplitude, active_fit_guess, horizontal_shift, axs_hist, test_phase)
             axs.errorbar(frequency[lower_bound:], amplitude[lower_bound:], xerr = uncertainty_frequency, yerr = uncertainty_amplitude, label = f"gefittete Messdaten", capsize = 3, c = "orange")
             axs.errorbar(frequency[:- (mes_points - lower_bound)], amplitude[:- (mes_points - lower_bound)], xerr = uncertainty_frequency, yerr = uncertainty_amplitude, label = f"maskierte Messdaten", capsize = 3, c = "m", fmt = "o")
         case 2:
-            evaluation.eval_L2(frequency[:upper_bound], amplitude[:upper_bound], axs, uncertainty_frequency, uncertainty_amplitude, active_fit_guess, horizontal_shift, test_phase)
+            evaluation.eval_L2(frequency[:upper_bound], amplitude[:upper_bound], axs, uncertainty_frequency, uncertainty_amplitude, active_fit_guess, horizontal_shift, axs_hist, test_phase)
             axs.errorbar(frequency[:upper_bound], amplitude[:upper_bound], xerr = uncertainty_frequency, yerr = uncertainty_amplitude, label = f"gefittete Messdaten", capsize = 3, c = "orange")
             axs.errorbar(frequency[upper_bound:], amplitude[upper_bound:], xerr = uncertainty_frequency, yerr = uncertainty_amplitude, label = f"maskierte Messdaten", capsize = 3, c = "m", fmt = "o")
         case 3:
             masked_data_freq = list(frequency.copy())
             masked_data_amp = list(amplitude.copy())
-            evaluation.eval_L2(frequency[lower_bound:upper_bound], amplitude[lower_bound:upper_bound], axs, uncertainty_frequency, uncertainty_amplitude, active_fit_guess, horizontal_shift, test_phase)
+            evaluation.eval_L2(frequency[lower_bound:upper_bound], amplitude[lower_bound:upper_bound], axs, uncertainty_frequency, uncertainty_amplitude, active_fit_guess, horizontal_shift, axs_hist, test_phase)
             axs.errorbar(frequency[lower_bound:upper_bound], amplitude[lower_bound:upper_bound], xerr = uncertainty_frequency, yerr = uncertainty_amplitude, label = f"gefittete Messdaten", capsize = 3, c = "orange")
             del masked_data_freq[lower_bound:upper_bound]
             del masked_data_amp[lower_bound:upper_bound]
@@ -112,7 +113,13 @@ def main():
             evaluation.eval_L2(masked_data_freq, masked_data_amp, axs, uncertainty_frequency, uncertainty_amplitude, active_fit_guess, horizontal_shift, test_phase)
             axs.errorbar(masked_data_freq, masked_data_amp, xerr = uncertainty_frequency, yerr = uncertainty_amplitude, label = f"gefittete Messdaten", capsize = 3, c = "orange")
             axs.errorbar(frequency[lower_bound:upper_bound], amplitude[lower_bound:upper_bound], xerr = uncertainty_frequency, yerr = uncertainty_amplitude, label = f"maskierte Messdaten", capsize = 3, c = "m", fmt = "o")
-
+    for i in axs_hist:
+        i.legend()
+        i.grid()
+        i.set_xlabel(r'Frequenz $f$ [$\text{s}^{-1}$]')
+        i.set_ylabel(r'Anzahl')
+    fig_hist.suptitle(r'Monte Carlo Verteilungen')
+    
     axs.legend()
     axs.grid()
     axs.set_xlabel(r'Frequenz $f$ [$\text{s}^{-1}$]')
