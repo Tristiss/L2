@@ -14,7 +14,7 @@ uncertainty_amplitude = 10 # mV
 
 mes_points = 100
 
-num = 4
+num = 5
 
 fit_guesses = {
     3 : [100, 3.2, 0.2, 0, 0],
@@ -48,7 +48,7 @@ curr = currents[num]
 
 active_fit_guess = fit_guesses[num]
 
-test_phase = True
+test_phase = False
 
 horizontal_shift = horizontal_shift_dict[num]
 

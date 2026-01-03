@@ -54,11 +54,13 @@ def test_lists():
     plt.grid()
     plt.show()
 
-times = np.linspace(0,100, 1000)
-data = times**2
+def i_dont_remeber_what_this_was():
+        times = np.linspace(0,100, 1000)
+        data = times**2
 
-data_tmp = {"time":times, "amplitude":data}
+        data_tmp = {"time":times, "amplitude":data}
 
-path = "C:"
+        path = "C:"
 
-pd.DataFrame(data_tmp).to_csv(path + rf"\waves\Messung_.csv", sep = ";")
+        pd.DataFrame(data_tmp).to_csv(path + rf"\waves\Messung_.csv", sep = ";")
+

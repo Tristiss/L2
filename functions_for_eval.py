@@ -163,6 +163,21 @@ class evaluation():
         peaks, props = find_peaks(y)
         resonance_frequency = x[peaks[0]]
 
+        # monte carlo for find peaks
+        runs = 100
+        result = []
+        for _ in range(runs):
+            arg = np.random.multivariate_normal(output.beta, output.cov_beta)
+            x = np.linspace(min(frequency), max(frequency), 10000)
+            y = [func(arg, i) for i in x]
+            peaks, props = find_peaks(y)
+            x2 = x[peaks[0]]
+            result.append(x2)
+        
+        u_res_freq = np.std(result)
+
+        del result
+
         u_A_params = np.concatenate(([resonance_frequency],output.beta))
         u_A_unc_params = np.concatenate(([u_omega_0], output.sd_beta))
 
@@ -172,8 +187,8 @@ class evaluation():
         if test_phase == False:
             axs.errorbar(resonance_frequency, amplitude_res_freq, xerr = u_omega_0, yerr = u_amplitude_res_freq, label = r"Resonanzfrequenz $\omega_0$",c = "blue", fmt = "o", capsize = 3)
 
-        rel_u_f_res_freq = 100 * u_omega_0 / np.abs(resonance_frequency)
-        print(rf"The resonance frequency is: {resonance_frequency} {u'\u00b1'} {u_omega_0} with rel u. {rel_u_f_res_freq}")
+        rel_u_f_res_freq = 100 * u_res_freq / np.abs(resonance_frequency)
+        print(rf"The resonance frequency is: {resonance_frequency} {u'\u00b1'} {u_res_freq} with rel u. {rel_u_f_res_freq}")
 
         amplitude_cut_off_freq = 0.707 * amplitude_res_freq
         u_amplitude_cut_off_freq = 0.707 * u_amplitude_res_freq
@@ -186,19 +201,33 @@ class evaluation():
         cut_off_freq_0 = least_squares(function_ls, x0 = 1, bounds = (0, resonance_frequency))["x"][0]
         cut_off_freq_1 = least_squares(function_ls, x0 = resonance_frequency + 2, bounds = (resonance_frequency, np.inf))["x"][0]
 
+        # monte carlo for least squares
+        result_0 = []
+        result_1 = []
+        for _ in range(runs):
+            arg = np.random.multivariate_normal(output.beta, output.cov_beta)
+            function_ls = lambda omega: func(arg, omega) - amplitude_cut_off_freq
+            x0 = least_squares(function_ls, x0 = 1, bounds = (0, resonance_frequency))["x"][0]
+            x1 = least_squares(function_ls, x0 = resonance_frequency + 2, bounds = (resonance_frequency, np.inf))["x"][0]
+            result_0.append(x0)
+            result_1.append(x1)
+
+        u_cut_freq_0 = np.std(result_0)
+        u_cut_freq_1 = np.std(result_1)
+
         print(f"The cut off frequencies are: {cut_off_freq_0} and {cut_off_freq_1}")
 
         if test_phase == False:
-            axs.errorbar(cut_off_freq_0, amplitude_cut_off_freq, xerr = output.sd_beta[1], yerr = u_amplitude_cut_off_freq, label = r"Linke Grenzfrequenz $f_{g,1}$", c = "green", fmt = "o", capsize = 3)
-            axs.errorbar(cut_off_freq_1, amplitude_cut_off_freq, xerr = output.sd_beta[1], yerr = u_amplitude_cut_off_freq, label = r"Rechte Grenzfrequenz $f_{g,2}$", c = "purple", fmt = "o", capsize = 3)
+            axs.errorbar(cut_off_freq_0, amplitude_cut_off_freq, xerr = u_cut_freq_0, yerr = u_amplitude_cut_off_freq, label = r"Linke Grenzfrequenz $f_{g,1}$", c = "green", fmt = "o", capsize = 3)
+            axs.errorbar(cut_off_freq_1, amplitude_cut_off_freq, xerr = u_cut_freq_1, yerr = u_amplitude_cut_off_freq, label = r"Rechte Grenzfrequenz $f_{g,2}$", c = "purple", fmt = "o", capsize = 3)
 
         bandwidth = cut_off_freq_1 - cut_off_freq_0
-        u_bandwidth = np.sqrt(2 * np.square(u_omega_0))
+        u_bandwidth = np.sqrt(np.square(u_cut_freq_0) + np.square(u_cut_freq_1))
         rel_u_bandwidth = 100 * u_bandwidth / np.abs(bandwidth)
         print(rf"The bandwidth is equal to {bandwidth} {u'\u00b1'} {u_bandwidth} with rel u. {rel_u_bandwidth}")
 
         quality_factor = resonance_frequency / bandwidth
-        u_quality_factor = np.sqrt(np.square(u_omega_0 / bandwidth) + np.square(- resonance_frequency * u_bandwidth / np.square(bandwidth)))
+        u_quality_factor = np.sqrt(np.square(u_res_freq / bandwidth) + np.square(- resonance_frequency * u_bandwidth / np.square(bandwidth)))
         rel_u_qf = 100 * u_quality_factor / np.abs(quality_factor)
         print(rf"The quality factor is equal to {quality_factor} {u'\u00b1'} {u_quality_factor} with rel u. {rel_u_qf}")
 
