@@ -29,7 +29,7 @@ def main(num):
     # get all files in the directory
     onlyfiles = [f for f in listdir(path) if isfile(join(path, f))]
 
-    onlyfiles.sort() # sort them so they line up with the frequency array 
+    onlyfiles.sort() # sort them so they line up with the frequency array
     #(isn't checked for but can be assumed)
         
     # get the current from one of the filenames

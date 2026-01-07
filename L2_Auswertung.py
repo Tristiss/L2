@@ -16,7 +16,7 @@ uncertainty_amplitude = 10 # mV
 
 mes_points = 100 # number of points per measurement
 
-num = 5
+num = 7
 
 # dictionaries that store all parameters of for each measurement
 # this should be replaced by one dictionary for better practice in the future
@@ -53,7 +53,7 @@ curr = currents[num]
 
 active_fit_guess = fit_guesses[num]
 
-test_phase = True
+test_phase = False
 
 horizontal_shift = horizontal_shift_dict[num]
 

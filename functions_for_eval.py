@@ -3,7 +3,6 @@ from scipy.optimize import least_squares
 from scipy.signal import find_peaks
 import scipy.odr as odr
 from scipy.differentiate import derivative
-import matplotlib.pyplot as plt
 
 class Fit_Functions_L2():
     # the reason for so many functions is because I don't know how to rearange the arguments of functions
@@ -169,7 +168,9 @@ class evaluation():
         result = []
         result_0 = []
         result_1 = []
-        for _ in range(runs):
+        failures = 0
+
+        def monte_carlo():
             arg = np.random.multivariate_normal(output.beta, output.cov_beta)
             x = np.linspace(min(frequency), max(frequency), 10000)
             y = [func(arg, i) for i in x]
@@ -185,6 +186,20 @@ class evaluation():
             result_0.append(x0)
             result_1.append(x1)
 
+        for _ in range(runs):
+            try:
+                monte_carlo()
+            except:
+                failures += 1
+
+        while failures != 0:
+            for _ in range(failures):
+                try:
+                    monte_carlo()
+                    failures -= 1
+                except:
+                    failures += 1
+
         # plot the range of the results as histograms
         axs_hist[0].hist(result, label = "Resonanzfrequenz")
         axs_hist[1].hist(result_0, label = "linke Grenzfrequenz")
@@ -195,16 +210,17 @@ class evaluation():
         u_cut_freq_0 = np.std(result_0)
         u_cut_freq_1 = np.std(result_1)
 
+
         # uncertainty of the amplitudes
         u_A_params = np.concatenate(([resonance_frequency],output.beta))
-        u_A_unc_params = np.concatenate(([u_omega_0], output.sd_beta))
+        u_A_unc_params = np.concatenate(([u_res_freq], output.sd_beta))
 
         amplitude_res_freq = func(output.beta, resonance_frequency)
         u_amplitude_res_freq = evaluation.u_A(u_A_params, u_A_unc_params, horizontal_shift)
 
 
         if test_phase == False: # plot resonance frequency with uncertainty
-            axs.errorbar(resonance_frequency, amplitude_res_freq, xerr = u_omega_0, yerr = u_amplitude_res_freq, label = r"Resonanzfrequenz $\omega_0$",c = "blue", fmt = "o", capsize = 3)
+            axs.errorbar(resonance_frequency, amplitude_res_freq, xerr = u_res_freq, yerr = u_amplitude_res_freq, label = r"Resonanzfrequenz $\omega_0$",c = "blue", fmt = "o", capsize = 3)
 
         rel_u_f_res_freq = 100 * u_res_freq / np.abs(resonance_frequency)
         print(rf"The resonance frequency is: {resonance_frequency} {u'\u00b1'} {u_res_freq} with rel u. {rel_u_f_res_freq}")
