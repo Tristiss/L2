@@ -22,9 +22,9 @@ def main(num):
     amplitude_fit:list = []
     amplitude_max:list = []
 
-    def fit_func(t, A, omega, phi, B):
+    def fit_func(t, A, B, omega, C):
         # fit function for a sine fit
-        return A * np.sin(omega * t + phi) + B
+        return A * np.sin(omega * t) + B * np.cos(omega * t) + C
 
     # get all files in the directory
     onlyfiles = [f for f in listdir(path) if isfile(join(path, f))]
@@ -45,12 +45,13 @@ def main(num):
 
         # try fitting the data against sine function add Nan when fit fails
         try:
-            popt, pcov = curve_fit(fit_func, df["time"], df["amplitude"], p0 = [60, 2 * constants.pi * vel, 0, 24100], bounds = ([0, 0, 0, 2000],[10000, 4 * constants.pi * vel, 2 * constants.pi, 30000]))
+            popt, pcov = curve_fit(fit_func, df["time"], df["amplitude"], p0 = [60, 60, 2 * constants.pi * vel, 24100], bounds = ([0, 0, 0, 0, 2000],[10000, 10000, 4 * constants.pi * vel, 30000]))
+            amplitude = np.sqrt(np.square(popt[0]) + np.square(popt[1]))
         except:
-            popt = ["Nan"]
+            amplitude = "Nan"
 
         # append fit amplitude to list
-        amplitude_fit.append(popt[0])
+        amplitude_fit.append(amplitude)
 
         # calculate the amplitude through the global maximum and subtract the measured zero 
         # (voltage at zero degree)
@@ -60,7 +61,7 @@ def main(num):
     data_tmp = {"frequency":frequencies, "amplitude fit":amplitude_fit, "amplitude max":amplitude_max}
 
     df_f_amp = pd.DataFrame(data_tmp)
-    df_f_amp.to_csv(rf"C:\Versuchssoftware\GP1C\L2\freq_amp\Messung_{num}_curr_{curr}.csv", sep = ";")
+    df_f_amp.to_csv(rf"C:\Versuchssoftware\GP1C\L2\freq_amp\Messung_{num}_curr_{curr}_v2.csv", sep = ";")
 
     df_f_amp.plot()
     plt.tight_layout()

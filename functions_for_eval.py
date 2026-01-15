@@ -1,3 +1,4 @@
+import math
 import numpy as np
 from scipy.optimize import least_squares
 from scipy.signal import find_peaks
@@ -8,49 +9,6 @@ class Fit_Functions_L2():
     # the reason for so many functions is because I don't know how to rearange the arguments of functions
     # which is neccessary for derivative and ODR
     # lambda functions may work but weren't tried yet because of time constraints
-    @staticmethod
-    def fit_func_om(omega, params:list):
-        a, omega_0, delta, B, C = params[1], params[2], params[3], params[4], params[5]
-        res = a / np.sqrt(np.square(np.square(omega_0) - np.square(omega + C)) + np.square(2 * delta * (omega + C))) + B # = A(\omega)
-        return np.array(res)
-
-    @staticmethod
-    def fit_func_a(a, params:list):
-        omega, omega_0, delta, B, C = params[0], params[2], params[3], params[4], params[5]
-        res = a / np.sqrt(np.square(np.square(omega_0) - np.square(omega + C)) + np.square(2 * delta * (omega + C))) + B # = A(\omega)
-        return np.array(res)
-
-    @staticmethod
-    def fit_func_om0(omega_0, params:list):
-        omega, a, delta, B, C = params[0], params[1], params[3], params[4], params[5]
-        res = a / np.sqrt(np.square(np.square(omega_0) - np.square(omega + C)) + np.square(2 * delta * (omega + C))) + B # = A(\omega)
-        return np.array(res)
-
-    @staticmethod
-    def fit_func_del(delta, params:list):
-        omega, a, omega_0, B, C = params[0], params[1], params[2], params[4], params[5]
-        res = a / np.sqrt(np.square(np.square(omega_0) - np.square(omega + C)) + np.square(2 * delta * (omega + C))) + B # = A(\omega)
-        return np.array(res)
-
-    @staticmethod
-    def fit_func_B(B, params:list):
-        omega, a, omega_0, delta, C = params[0], params[1], params[2], params[3], params[5]
-        res = a / np.sqrt(np.square(np.square(omega_0) - np.square(omega + C)) + np.square(2 * delta * (omega + C))) + B # = A(\omega)
-        return np.array(res)
-
-    @staticmethod
-    def fit_func_C(C, params:list):
-        omega, a, omega_0, delta, B = params[0], params[1], params[2], params[3], params[4]
-        res = a / np.sqrt(np.square(np.square(omega_0) - np.square(omega + C)) + np.square(2 * delta * (omega + C))) + B # = A(\omega)
-        return np.array(res)
-
-    @staticmethod
-    def fit_func_odr_with_shift(params:list, omega):
-        a, omega_0, delta, B, C = params[0], params[1], params[2], params[3], params[4]
-        return a / np.sqrt(np.square(np.square(omega_0) - np.square(omega + C)) + np.square(2 * delta * (omega + C))) + B # = A(\omega)
-    
-
-    # The next functions are without the horizontal shift
     @staticmethod
     def fit_func_om_wo(omega, params:list):
         a, omega_0, delta, B = params[1], params[2], params[3], params[4]
@@ -90,30 +48,9 @@ class Fit_Functions_L2():
 class evaluation():
 
     @staticmethod
-    def u_A(params, u_params, horizontal_shift):
+    def u_A(params, u_params):
         # gaussian uncertainty propagation for amplitude
         result = 0
-        if horizontal_shift == True:
-            res = derivative(Fit_Functions_L2.fit_func_om, params[0], args = [params])
-            result += np.square(res.df[0] * u_params[0])
-
-            res = derivative(Fit_Functions_L2.fit_func_a, params[1], args = [params])
-            result += np.square(res.df[0] * u_params[1])
-            
-            res = derivative(Fit_Functions_L2.fit_func_om0, params[2], args = [params])
-            result += np.square(res.df[0] * u_params[2])
-            
-            res = derivative(Fit_Functions_L2.fit_func_del, params[3], args = [params])
-            result += np.square(res.df[0] * u_params[3])
-
-            res = derivative(Fit_Functions_L2.fit_func_B, params[4], args = [params])
-            result += np.square(res.df[0] * u_params[4])
-            
-            res = derivative(Fit_Functions_L2.fit_func_C, params[5], args = [params])
-            result += np.square(res.df[0] * u_params[5])
-            
-            return np.sqrt(result)
-    
         res = derivative(Fit_Functions_L2.fit_func_om_wo, params[0], args = [params])
         result += np.square(res.df[0] * u_params[0])
 
@@ -133,12 +70,8 @@ class evaluation():
             
 
     @staticmethod
-    def eval_L2(frequency:list, amplitude:list, axs, uncertainty_frequency, uncertainty_amplitude, beta0, horizontal_shift, axs_hist, test_phase = False):
-        match horizontal_shift: # decide which fit function to use for ODR
-            case True:
-                func = Fit_Functions_L2.fit_func_odr_with_shift
-            case False:
-                func = Fit_Functions_L2.fit_func_odr_wo_shift
+    def eval_L2(frequency:list, amplitude:list, axs, uncertainty_frequency, uncertainty_amplitude, beta0, axs_hist, num, curr, test_phase = False):
+        func = Fit_Functions_L2.fit_func_odr_wo_shift
         odr_model = odr.Model(func) # create ODR model functions
         # load data and uncertainty into ODR object
         data = odr.RealData(frequency, amplitude, sx = uncertainty_frequency, sy = uncertainty_amplitude)
@@ -172,6 +105,7 @@ class evaluation():
 
         def monte_carlo():
             arg = np.random.multivariate_normal(output.beta, output.cov_beta)
+            arg = list(arg)
             x = np.linspace(min(frequency), max(frequency), 10000)
             y = [func(arg, i) for i in x]
             peaks, props = find_peaks(y)
@@ -192,13 +126,12 @@ class evaluation():
             except:
                 failures += 1
 
-        while failures != 0:
-            for _ in range(failures):
-                try:
-                    monte_carlo()
-                    failures -= 1
-                except:
-                    failures += 1
+        if failures == 0:
+            failure_rate = 0
+        else:
+            failure_rate = 100 * runs / failures
+
+        print(f"The failure rate for the Monte Carlo propagation is {failure_rate} %")
 
         # plot the range of the results as histograms
         axs_hist[0].hist(result, label = "Resonanzfrequenz")
@@ -216,7 +149,7 @@ class evaluation():
         u_A_unc_params = np.concatenate(([u_res_freq], output.sd_beta))
 
         amplitude_res_freq = func(output.beta, resonance_frequency)
-        u_amplitude_res_freq = evaluation.u_A(u_A_params, u_A_unc_params, horizontal_shift)
+        u_amplitude_res_freq = evaluation.u_A(u_A_params, u_A_unc_params)
 
 
         if test_phase == False: # plot resonance frequency with uncertainty
@@ -232,7 +165,7 @@ class evaluation():
         rel_u_amp_cut_freq = 100 * u_amplitude_cut_off_freq / np.abs(amplitude_cut_off_freq)
         print(rf"Amplitude at res freq: {amplitude_res_freq} {u'\u00b1'} {u_amplitude_res_freq} with rel u. {rel_u_amp_res_freq}")
         print(rf"Amplitude at cut off freq: {amplitude_cut_off_freq} {u'\u00b1'} {u_amplitude_cut_off_freq} with rel u. {rel_u_amp_cut_freq}")
-        
+
         # find the cut off frequencies by reducing the graph by the amplitude at which the frequencies are
         # and finding the roots
         function_ls = lambda omega: func(output.beta, omega) - amplitude_cut_off_freq
@@ -264,6 +197,30 @@ class evaluation():
         # calculate decay rate
         decay_rate = resonance_frequency / (2 * quality_factor)
         print(f"The decay rate is equal to: {decay_rate}")
+
+        u_curr = curr * 0.001 + 0.05
+        rel_u_curr = 100 * u_curr / curr
+
+        # Source - https://realpython.com/python-rounding/#rounding-up
+        # By DevCademy Media Inc. DBA Real Python
+        # Retrieved 2026-01-14, usage is allowed only non commercially
+        #import math
+        # ...
+        #def round_up(n, decimals=0):
+        #   multiplier = 10**decimals
+        #   return math.ceil(n * multiplier) / multiplier
+
+        def round_up(n, decimals = 0):
+            multiplier = 10**decimals
+            return math.ceil(n * multiplier) / multiplier
+        
+        print("")
+        print(rf"\(I\) & Stromstärke Messung {num} & \({round_up(curr, 2):n}~\text{{A}}\) & Typ B: Gl.~\ref{{eq:u_I}} & \({round_up(u_curr, 2):n}~\text{{A}}\) & \({round_up(rel_u_curr, 2):n}~\%\) \\")
+        print(rf"\(f_r\)& Resonanzfrequenz & \({round_up(resonance_frequency, 2):n}~\text{{s}}^{{-1}}\)& Monte Carlo: Algo.~\ref{{algo:u_f}} & \({round_up(u_res_freq, 2):n}~\text{{s}}^{{-1}}\) & \({round_up(rel_u_f_res_freq, 2):n}~\%\) \\")
+        print(rf"\(f_{{g,l}}\)& linke Grenzfrequenz & \({round_up(cut_off_freq_0, 2):n}~\text{{s}}^{{-1}}\)& Monte Carlo: Algo.~\ref{{algo:u_f}} & \({round_up(cut_off_freq_0, 2):n}~\text{{s}}^{{-1}}\) & \({round_up(rel_u_cut_off_freq_0, 2):n}~\%\) \\")
+        print(rf"\(f_{{g,r}}\)& rechte Grenzfrequenz & \({round_up(cut_off_freq_1, 2):n}~\text{{s}}^{{-1}}\)& Monte Carlo: Algo.~\ref{{algo:u_f}} & \({round_up(cut_off_freq_1, 2):n}~\text{{s}}^{{-1}}\) & \({round_up(rel_u_cut_off_freq_1, 2):n}~\%\) \\")
+        print(rf"\(B\)& Bandbreite & \({round_up(bandwidth, 2):n}~\text{{s}}^{{-1}}\)& GFG: Gl.~\ref{{eq:u_band}} & \({round_up(u_bandwidth, 2):n}~\text{{s}}^{{-1}}\) & \({round_up(rel_u_bandwidth, 2):n}~\%\) \\")
+        print(rf"\(Q\)& Gütefaktor & \({round_up(quality_factor, 2):n}\)& GFG: Gl.~\ref{{eq:u_qf}} & \({round_up(u_quality_factor, 2):n}\) & \({round_up(rel_u_qf, 2):n}~\%\) \\")
 
 if __name__ == "__main__":
     print("Wrong script dummy :)") # this happened way to often
