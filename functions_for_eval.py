@@ -222,5 +222,7 @@ class evaluation():
         print(rf"\(B\)& Bandbreite & \({round_up(bandwidth, 2):n}~\text{{s}}^{{-1}}\)& GFG: Gl.~\ref{{eq:u_band}} & \({round_up(u_bandwidth, 2):n}~\text{{s}}^{{-1}}\) & \({round_up(rel_u_bandwidth, 2):n}~\%\) \\")
         print(rf"\(Q\)& Gütefaktor & \({round_up(quality_factor, 2):n}\)& GFG: Gl.~\ref{{eq:u_qf}} & \({round_up(u_quality_factor, 2):n}\) & \({round_up(rel_u_qf, 2):n}~\%\) \\")
 
+        return (quality_factor, u_quality_factor, curr)
+
 if __name__ == "__main__":
     print("Wrong script dummy :)") # this happened way to often

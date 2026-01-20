@@ -7,6 +7,8 @@ import locale
 
 from functions_for_eval import *
 
+test_phase = False
+
 def main(num):
     # enable latex in plots
     mpl.rcParams['text.usetex'] = True
@@ -49,8 +51,6 @@ def main(num):
 
     active_fit_guess = fit_guesses[num]
 
-    test_phase = False
-
     mask_type = maskings[num][0]
     # 0 => no masking
     # 1 => mask only left side
@@ -78,20 +78,20 @@ def main(num):
 
     match mask_type:
         case 0:
-            evaluation.eval_L2(frequency, amplitude, axs, uncertainty_frequency, uncertainty_amplitude, active_fit_guess, axs_hist, num, curr, test_phase)
+            qf, u_qf, curr = evaluation.eval_L2(frequency, amplitude, axs, uncertainty_frequency, uncertainty_amplitude, active_fit_guess, axs_hist, num, curr, test_phase)
             axs.errorbar(frequency, amplitude, xerr = uncertainty_frequency, yerr = uncertainty_amplitude, label = f"gefittete Messdaten", capsize = 3, c = "orange")
         case 1:
-            evaluation.eval_L2(frequency[lower_bound:], amplitude[lower_bound:], axs, uncertainty_frequency, uncertainty_amplitude, active_fit_guess, axs_hist, num, curr, test_phase)
+            qf, u_qf, curr = evaluation.eval_L2(frequency[lower_bound:], amplitude[lower_bound:], axs, uncertainty_frequency, uncertainty_amplitude, active_fit_guess, axs_hist, num, curr, test_phase)
             axs.errorbar(frequency[lower_bound:], amplitude[lower_bound:], xerr = uncertainty_frequency, yerr = uncertainty_amplitude, label = f"gefittete Messdaten", capsize = 3, c = "orange")
             axs.errorbar(frequency[:- (mes_points - lower_bound)], amplitude[:- (mes_points - lower_bound)], xerr = uncertainty_frequency, yerr = uncertainty_amplitude, label = f"maskierte Messdaten", capsize = 3, c = "m", fmt = "o")
         case 2:
-            evaluation.eval_L2(frequency[:upper_bound], amplitude[:upper_bound], axs, uncertainty_frequency, uncertainty_amplitude, active_fit_guess, axs_hist, num, curr, test_phase)
+            qf, u_qf, curr = evaluation.eval_L2(frequency[:upper_bound], amplitude[:upper_bound], axs, uncertainty_frequency, uncertainty_amplitude, active_fit_guess, axs_hist, num, curr, test_phase)
             axs.errorbar(frequency[:upper_bound], amplitude[:upper_bound], xerr = uncertainty_frequency, yerr = uncertainty_amplitude, label = f"gefittete Messdaten", capsize = 3, c = "orange")
             axs.errorbar(frequency[upper_bound:], amplitude[upper_bound:], xerr = uncertainty_frequency, yerr = uncertainty_amplitude, label = f"maskierte Messdaten", capsize = 3, c = "m", fmt = "o")
         case 3:
             masked_data_freq = list(frequency.copy())
             masked_data_amp = list(amplitude.copy())
-            evaluation.eval_L2(frequency[lower_bound:upper_bound], amplitude[lower_bound:upper_bound], axs, uncertainty_frequency, uncertainty_amplitude, active_fit_guess, axs_hist, num, curr, test_phase)
+            qf, u_qf, curr = evaluation.eval_L2(frequency[lower_bound:upper_bound], amplitude[lower_bound:upper_bound], axs, uncertainty_frequency, uncertainty_amplitude, active_fit_guess, axs_hist, num, curr, test_phase)
             axs.errorbar(frequency[lower_bound:upper_bound], amplitude[lower_bound:upper_bound], xerr = uncertainty_frequency, yerr = uncertainty_amplitude, label = f"gefittete Messdaten", capsize = 3, c = "orange")
             del masked_data_freq[lower_bound:upper_bound]
             del masked_data_amp[lower_bound:upper_bound]
@@ -101,7 +101,7 @@ def main(num):
             masked_data_amp = list(amplitude.copy())
             del masked_data_freq[lower_bound:upper_bound]
             del masked_data_amp[lower_bound:upper_bound]
-            evaluation.eval_L2(masked_data_freq, masked_data_amp, axs, uncertainty_frequency, uncertainty_amplitude, active_fit_guess, num, curr, test_phase)
+            qf, u_qf, curr = evaluation.eval_L2(masked_data_freq, masked_data_amp, axs, uncertainty_frequency, uncertainty_amplitude, active_fit_guess, num, curr, test_phase)
             axs.errorbar(masked_data_freq, masked_data_amp, xerr = uncertainty_frequency, yerr = uncertainty_amplitude, label = f"gefittete Messdaten", capsize = 3, c = "orange")
             axs.errorbar(frequency[lower_bound:upper_bound], amplitude[lower_bound:upper_bound], xerr = uncertainty_frequency, yerr = uncertainty_amplitude, label = f"maskierte Messdaten", capsize = 3, c = "m", fmt = "o")
 
@@ -123,6 +123,26 @@ def main(num):
         fig.savefig(fname = rf"Messung_{num}_current_{curr}_v1.pdf", format = "pdf")
         fig_hist.savefig(fname = rf"Monte_Carlo_Verteilung_{num}_current_{curr}_v1.pdf", format = "pdf")
 
+    return (qf, u_qf, curr)
+
 if __name__ == "__main__":
+    qf_li = []
+    u_qf_li = []
+    curr_li = []
     for i in [4,5,7]:
-        main(i)
+        qf, u_qf, curr = main(i)
+        qf_li.append(qf)
+        u_qf_li.append(u_qf)
+        curr_li.append(curr)
+
+    fig, axs = plt.subplots()
+
+    axs.errorbar(curr_li, qf_li, yerr = u_qf_li, capsize = 3, fmt = "o")
+
+    axs.grid()
+    axs.set_xlabel(r'Stromstärke $I$ [A]')
+    axs.set_ylabel(r'Gütefaktor $Q$ []')
+    axs.set_title(rf'$I$-$Q$-Diagramm für alle Messungen')
+    plt.show()
+    if test_phase == False: # save figure
+        fig.savefig(fname = rf"Q_I_Diagramm_v1.pdf", format = "pdf")
