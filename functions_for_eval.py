@@ -70,7 +70,7 @@ class evaluation():
             
 
     @staticmethod
-    def eval_L2(frequency:list, amplitude:list, axs, uncertainty_frequency, uncertainty_amplitude, beta0, axs_hist, num, curr, test_phase = False):
+    def eval_L2(frequency:list, amplitude:list, axs, axs_all, uncertainty_frequency, uncertainty_amplitude, beta0, axs_hist, num, curr, test_phase = False):
         func = Fit_Functions_L2.fit_func_odr_wo_shift
         odr_model = odr.Model(func) # create ODR model functions
         # load data and uncertainty into ODR object
@@ -83,10 +83,17 @@ class evaluation():
 
         u_omega_0 = output.sd_beta[1]
 
+        colour = {
+            0.25 : "#FE6BD7",
+            0.5 : "#6100B0",
+            0.75 : "#ff9a00"
+        }
+
         # create fit plot 
         x = np.linspace(min(frequency), max(frequency), 10000)
         y = [func(output.beta, i) for i in x]
-        axs.plot(x,y, label = f"ODR Fit", c = "cyan")
+        axs.plot(x,y, label = f"ODR Fit", c = "black", lw = 1.5, zorder = 1)
+        axs_all.plot(x,y, label = rf"ODR Fit $I = ${curr} A", c = colour[curr])
     
         # find the resonance frequency by finding the peak of the fit function
         peaks, props = find_peaks(y)
@@ -97,7 +104,7 @@ class evaluation():
         # MONTE CARLO for resonance frequency (find peaks) and cut off frequencies (least squares)
         # The algorithm performs the same calculations as the program does usually but the fit parameters
         # are randomized for each run
-        runs = 1000
+        runs = 100
         result = []
         result_0 = []
         result_1 = []
@@ -151,9 +158,16 @@ class evaluation():
         amplitude_res_freq = func(output.beta, resonance_frequency)
         u_amplitude_res_freq = evaluation.u_A(u_A_params, u_A_unc_params)
 
+        kwargs = {
+            "fmt" : " ",
+            "capsize" : 3,
+            "elinewidth" : 0.8,
+            "capthick" : 0.8
+        }
 
         if test_phase == False: # plot resonance frequency with uncertainty
-            axs.errorbar(resonance_frequency, amplitude_res_freq, xerr = u_res_freq, yerr = u_amplitude_res_freq, label = r"Resonanzfrequenz $\omega_0$",c = "blue", fmt = "o", capsize = 3)
+            axs.errorbar(resonance_frequency, amplitude_res_freq, xerr = u_res_freq, yerr = u_amplitude_res_freq, label = r"Resonanzfrequenz $\omega_0$",c = "#0FCD00", **kwargs)
+            axs.axvline(resonance_frequency, linestyle = "--", lw = 1.5, c = "#0FCD00")
 
         rel_u_f_res_freq = 100 * u_res_freq / np.abs(resonance_frequency)
         print(rf"The resonance frequency is: {resonance_frequency} {u'\u00b1'} {u_res_freq} with rel u. {rel_u_f_res_freq}")
@@ -179,8 +193,14 @@ class evaluation():
         print(f"The right cut off frequencies are: {cut_off_freq_1} {u'\u00b1'} {u_cut_freq_1} with rel u. {rel_u_cut_off_freq_1}")
 
         if test_phase == False: # plot cut off frequencies with uncertainty
-            axs.errorbar(cut_off_freq_0, amplitude_cut_off_freq, xerr = u_cut_freq_0, yerr = u_amplitude_cut_off_freq, label = r"Linke Grenzfrequenz $f_{g,1}$", c = "green", fmt = "o", capsize = 3)
-            axs.errorbar(cut_off_freq_1, amplitude_cut_off_freq, xerr = u_cut_freq_1, yerr = u_amplitude_cut_off_freq, label = r"Rechte Grenzfrequenz $f_{g,2}$", c = "purple", fmt = "o", capsize = 3)
+            axs.errorbar(cut_off_freq_0, amplitude_cut_off_freq, xerr = u_cut_freq_0, yerr = u_amplitude_cut_off_freq, label = r"Linke Grenzfrequenz $f_{g,1}$", c = colour[0.25], **kwargs)
+            axs.errorbar(cut_off_freq_1, amplitude_cut_off_freq, xerr = u_cut_freq_1, yerr = u_amplitude_cut_off_freq, label = r"Rechte Grenzfrequenz $f_{g,2}$", c = colour[0.5], **kwargs)
+            axs.axvline(cut_off_freq_0, linestyle = "--", lw = 1.5, c = colour[0.25])
+            axs.axvline(cut_off_freq_1, linestyle = "--", lw = 1.5, c = colour[0.5])
+            axs_all.errorbar(cut_off_freq_0, amplitude_cut_off_freq, xerr = u_cut_freq_0, c = colour[curr], **kwargs)
+            axs_all.errorbar(cut_off_freq_1, amplitude_cut_off_freq, xerr = u_cut_freq_1, c = colour[curr], **kwargs)
+            axs_all.axvline(cut_off_freq_0, linestyle = "--", lw = 1.5, label = rf"$f_{{g}}$ $I = ${curr} A", c = colour[curr])
+            axs_all.axvline(cut_off_freq_1, linestyle = "--", lw = 1.5, c = colour[curr])
 
         # calculate bandwidth
         bandwidth = cut_off_freq_1 - cut_off_freq_0
