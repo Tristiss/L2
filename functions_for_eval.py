@@ -46,7 +46,6 @@ class Fit_Functions_L2():
 
 
 class evaluation():
-
     @staticmethod
     def u_A(params, u_params):
         # gaussian uncertainty propagation for amplitude

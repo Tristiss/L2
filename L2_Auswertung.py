@@ -8,7 +8,7 @@ from scipy.optimize import curve_fit
 
 from functions_for_eval import *
 
-test_phase = False
+test_phase = True
 
 def main(num, axs_all):
     # enable latex in plots
@@ -80,7 +80,7 @@ def main(num, axs_all):
     kwargs = {
         "capsize" : 3, 
         "capthick" : 0.3,
-        "alpha" : 0.4, 
+        "alpha" : 0.7,
         "elinewidth" : 0.3
     }
 
@@ -113,6 +113,8 @@ def main(num, axs_all):
             qf, u_qf, curr = evaluation.eval_L2(masked_data_freq, masked_data_amp, axs, axs_all, uncertainty_frequency, uncertainty_amplitude, active_fit_guess, num, curr, test_phase)
             axs.errorbar(masked_data_freq, masked_data_amp, xerr = uncertainty_frequency, yerr = uncertainty_amplitude, label = f"gefittete Messdaten", c = "orange", **kwargs)
             axs.errorbar(frequency[lower_bound:upper_bound], amplitude[lower_bound:upper_bound], xerr = uncertainty_frequency, yerr = uncertainty_amplitude, label = f"maskierte Messdaten", c = "m", **kwargs)
+        case _:
+            qf = u_qf = 0
 
     for i in axs_hist: # edit style for histogram plots
         i.legend()
